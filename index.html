@@ -166,7 +166,7 @@ nav {
 #hero {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  padding: 100px 40px 60px;
+  padding: 100px 40px 140px;
   text-align: center;
   position: relative;
 }
@@ -221,10 +221,13 @@ nav {
 .stat-num span { background: linear-gradient(135deg, var(--pink), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .stat-label { font-size: 0.85rem; color: var(--text3); margin-top: 4px; }
 .hero-scroll {
-  position: absolute; bottom: 40px; left: 50%;
+  position: absolute; bottom: 32px; left: 50%;
   transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  color: var(--text3); font-size: 0.8rem;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--text3); font-size: 0.78rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
   animation: bounce 2s infinite;
 }
 @keyframes bounce { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(6px); } }
@@ -430,10 +433,15 @@ section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
 /* Table */
 .table-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-select {
-  padding: 10px 16px; border-radius: 100px; border: 1px solid var(--border);
+  padding: 10px 40px 10px 16px; border-radius: 100px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-size: 0.88rem;
-  outline: none; cursor: pointer;
+  outline: none; cursor: pointer; transition: all var(--transition);
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239898b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
 }
+.filter-select:hover { border-color: var(--pink); }
+.filter-select:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255,128,171,0.1); }
 .search-input {
   flex: 1; min-width: 200px; padding: 10px 18px; border-radius: 100px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
@@ -890,6 +898,7 @@ footer {
           <thead>
             <tr>
               <th onclick="sortStudents('student_id')">MSSV ↕</th>
+              <th onclick="sortStudents('name')">Họ tên ↕</th>
               <th onclick="sortStudents('midterm_score')">Giữa kỳ ↕</th>
               <th onclick="sortStudents('final_score')">Cuối kỳ ↕</th>
               <th onclick="sortStudents('total_score')">Tổng kết ↕</th>
@@ -1002,7 +1011,7 @@ footer {
 // ═══════════════════════
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxte_GN94q7r7w1JG8ScCwakMXjiH8egElOTFJYrtBkqekt80Ou2tEfOB68IyPzLnS9/exec'; // ← Thay bằng URL deploy từ Apps Script
 const GOOGLE_CLIENT_ID = '613892430345-rgaj7l28fnr8d0u2uckbiegpv09ue2qp.apps.googleusercontent.com'; // ← Thay bằng OAuth Client ID
-const COOLDOWN_SECONDS = 60;
+const COOLDOWN_SECONDS = 10;
 
 // ═══════════════════════
 // INIT
@@ -1323,21 +1332,34 @@ function getGrade(score) {
   return 'F';
 }
 
+function fmtScore(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = parseFloat(String(v).replace(',', '.'));
+  if (isNaN(n)) return '—';
+  return Number.isInteger(n) ? n.toFixed(1) : n.toFixed(2).replace(/\.?0+$/, s => s === '.00' ? '.0' : s);
+}
+function fmtDate(v) {
+  if (!v || v === 'FALSE' || v === false) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
 function renderStudents(data) {
   const tb = document.getElementById('students-tbody');
-  if (!data.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">Không có dữ liệu</td></tr>'; return; }
+  if (!data.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:40px">Không có dữ liệu</td></tr>'; return; }
   tb.innerHTML = data.map(s => {
-    const grade = getGrade(parseFloat(s.total_score));
-    const sent = s.email_sent === true || s.email_sent === 'TRUE' || s.email_sent === true;
-    const lastSent = s.last_sent_at ? new Date(s.last_sent_at).toLocaleString('vi-VN') : '—';
+    const tot = parseFloat(String(s.total_score).replace(',','.'));
+    const grade = getGrade(tot);
+    const sent = s.email_sent === true || String(s.email_sent).toUpperCase() === 'TRUE';
     return `<tr>
-      <td><strong>${s.student_id}</strong></td>
-      <td>${s.midterm_score ?? '—'}</td>
-      <td>${s.final_score ?? '—'}</td>
-      <td><strong>${s.total_score ?? '—'}</strong></td>
+      <td><strong>${s.student_id ?? '—'}</strong></td>
+      <td style="color:var(--text2);font-size:0.85rem">${s.name ?? '—'}</td>
+      <td>${fmtScore(s.midterm_score)}</td>
+      <td>${fmtScore(s.final_score)}</td>
+      <td><strong style="color:${grade==='F'?'var(--red)':grade==='A'?'var(--green)':'var(--text)'}">${fmtScore(s.total_score)}</strong></td>
       <td><span class="grade-${grade}">${grade}</span></td>
       <td><span class="badge ${sent ? 'badge-sent' : 'badge-unsent'}">${sent ? '✓ Đã gửi' : '✗ Chưa gửi'}</span></td>
-      <td style="font-size:0.82rem;color:var(--text2)">${lastSent}</td>
+      <td style="font-size:0.82rem;color:var(--text2)">${fmtDate(s.last_sent_at)}</td>
     </tr>`;
   }).join('');
   updateBulkCount(data);
@@ -1348,9 +1370,12 @@ function filterStudents() {
   const grade = document.getElementById('filter-grade').value;
   const sent = document.getElementById('filter-sent').value;
   let filtered = allStudents.filter(s => {
-    const matchQ = !q || s.student_id?.toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q);
-    const matchGrade = !grade || getGrade(parseFloat(s.total_score)) === grade;
-    const isSent = s.email_sent === true || s.email_sent === 'TRUE';
+    const sid = String(s.student_id ?? '').toLowerCase();
+    const nm  = String(s.name ?? '').toLowerCase();
+    const matchQ = !q || sid.includes(q) || nm.includes(q);
+    const tot = parseFloat(String(s.total_score).replace(',','.'));
+    const matchGrade = !grade || getGrade(tot) === grade;
+    const isSent = s.email_sent === true || String(s.email_sent).toUpperCase() === 'TRUE';
     const matchSent = !sent || (sent === 'sent' ? isSent : !isSent);
     return matchQ && matchGrade && matchSent;
   });
@@ -1360,8 +1385,10 @@ function filterStudents() {
 function sortStudents(key) {
   if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
   allStudents.sort((a, b) => {
-    let va = a[key], vb = b[key];
-    if (!isNaN(va) && !isNaN(vb)) { va = parseFloat(va); vb = parseFloat(vb); }
+    let va = String(a[key] ?? ''), vb = String(b[key] ?? '');
+    const na = parseFloat(va.replace(',','.')), nb = parseFloat(vb.replace(',','.'));
+    if (!isNaN(na) && !isNaN(nb)) { va = na; vb = nb; }
+    if (va === vb) return 0;
     return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
   });
   filterStudents();
@@ -1394,6 +1421,7 @@ async function doBulkSend() {
 // IMPORT CSV
 // ═══════════════════════
 let csvRawData = null;
+let csvDelimiter = ',';
 
 function handleFileSelect(e) {
   const file = e.target.files[0];
@@ -1417,44 +1445,83 @@ function readCSV(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
+function detectDelimiter(firstLine) {
+  const counts = { ',': 0, ';': 0, '\t': 0 };
+  for (const c of firstLine) if (counts[c] !== undefined) counts[c]++;
+  return Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+}
+function splitLine(line, delim) {
+  // Hỗ trợ quoted fields
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === delim && !inQ) { result.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  result.push(cur.trim());
+  return result;
+}
 function previewCSV(text) {
-  const lines = text.trim().split('\n').slice(0, 6);
-  const headers = lines[0].split(',').map(h => h.trim());
+  const lines = text.trim().split('\n').filter(l => l.trim()).slice(0, 6);
+  const delim = detectDelimiter(lines[0]);
+  csvDelimiter = delim; // lưu để dùng khi import
+  const headers = splitLine(lines[0], delim);
   const detected = detectColumns(headers);
-  document.getElementById('detected-cols').textContent = `Nhận diện cột: ${JSON.stringify(detected)}`;
+  const detectedNames = Object.fromEntries(Object.entries(detected).map(([k,v])=>[k, headers[v]]));
+
+  const missing = ['student_id','midterm_score','final_score','total_score'].filter(k => detected[k] === undefined);
+  if (missing.length > 0) {
+    document.getElementById('detected-cols').innerHTML =
+      `<span style="color:var(--red)">⚠️ Không nhận diện được cột: ${missing.join(', ')}. Kiểm tra lại header.</span>`;
+    document.getElementById('import-confirm-btn').disabled = true;
+  } else {
+    document.getElementById('detected-cols').innerHTML =
+      `<span style="color:var(--green)">✅ Nhận diện: ${Object.entries(detectedNames).map(([k,v])=>`<b>${k}</b>→"${v}"`).join(' | ')}</span>`;
+    document.getElementById('import-confirm-btn').disabled = false;
+  }
 
   const tableHtml = `<table>
     <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${lines.slice(1).map(row => `<tr>${row.split(',').map(c => `<td>${c.trim()}</td>`).join('')}</tr>`).join('')}</tbody>
+    <tbody>${lines.slice(1).map(row => `<tr>${splitLine(row,delim).map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
   </table>`;
-
   document.getElementById('preview-table-wrap').innerHTML = tableHtml;
   document.getElementById('csv-preview').style.display = 'block';
   document.getElementById('upload-zone').style.display = 'none';
 }
 
 function detectColumns(headers) {
+  // Trả về { field: colIndex }
   const keywords = {
-    student_id: ['mssv','student_id','studentid','ma sv','masv'],
-    midterm_score: ['gk','midterm','giua ky','diemgk','diem gk'],
-    final_score: ['ck','final','cuoi ky','diemck','diem ck'],
-    total_score: ['total','tong','tong ket','diem tong','diemtong','dtb','tb']
+    student_id:    ['mssv','student_id','studentid','masv','masinhvien'],
+    midterm_score: ['giuaky','diemgiuaky','midterm','diemgk','gk'],
+    final_score:   ['cuoiky','diemcuoiky','final','diemck','ck'],
+    total_score:   ['tongket','diemtongket','total','tong','dtb','tb','diemtb','diemtong'],
+    name:          ['hovaten','hoten','ten','name','fullname','hovatensvinhvien'],
+    email:         ['email','mail','emailsv','emailsinhvien'],
   };
+  const norm = s => String(s).toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[\s_\-]+/g,'');
   const result = {};
-  headers.forEach(h => {
-    const norm = h.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
-    for (const [key, kws] of Object.entries(keywords)) {
-      if (kws.some(k => norm.includes(k))) { result[key] = h; break; }
+  headers.forEach((h, i) => {
+    const n = norm(h);
+    for (const [field, kws] of Object.entries(keywords)) {
+      if (result[field] !== undefined) continue;
+      if (kws.some(k => n.includes(k))) { result[field] = i; }
     }
   });
   return result;
 }
 
 function cancelImport() {
-  csvRawData = null;
+  csvRawData = null; csvDelimiter = ',';
   document.getElementById('csv-preview').style.display = 'none';
   document.getElementById('upload-zone').style.display = 'block';
   document.getElementById('csv-file').value = '';
+  document.getElementById('detected-cols').innerHTML = '';
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = false; btn.textContent = '✅ Xác nhận import';
 }
 
 async function confirmImport() {
@@ -1462,15 +1529,26 @@ async function confirmImport() {
   const btn = document.getElementById('import-confirm-btn');
   btn.disabled = true; btn.textContent = '⏳ Đang import...';
   try {
-    const res = await callGAS('import_csv', { token: adminToken, csv_data: csvRawData });
+    // Parse CSV → JSON rows để GAS không cần lo delimiter
+    const lines = csvRawData.trim().split('\n').filter(l => l.trim());
+    const delim = csvDelimiter || ',';
+    const headers = splitLine(lines[0], delim);
+    const colMap = detectColumns(headers);
+    const rows = lines.slice(1).map(l => {
+      const cells = splitLine(l, delim);
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = cells[i] ?? '');
+      return obj;
+    });
+    const res = await callGAS('import_csv', { token: adminToken, rows, col_map: colMap, headers });
     if (res.status === 'success') {
-      showToast(`✅ Đồng bộ ${res.upserted} sinh viên. Cột nhận diện: ${JSON.stringify(res.detected_cols)}`);
+      showToast(`✅ Đồng bộ ${res.upserted} sinh viên`);
       cancelImport(); loadStudents(); loadStats();
     } else {
       showToast(`❌ ${res.message || 'Import thất bại'}`);
+      btn.disabled = false; btn.textContent = '✅ Xác nhận import';
     }
-  } catch(e) { showToast('❌ Lỗi kết nối'); }
-  btn.disabled = false; btn.textContent = '✅ Xác nhận import';
+  } catch(e) { showToast('❌ Lỗi kết nối: ' + e.message); btn.disabled = false; btn.textContent = '✅ Xác nhận import'; }
 }
 
 // ═══════════════════════
@@ -1534,12 +1612,16 @@ async function loadLog() {
 function renderLog(data) {
   const tb = document.getElementById('log-tbody');
   if (!data?.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:40px">Chưa có lịch sử.</td></tr>'; return; }
-  tb.innerHTML = data.map(l => `<tr>
-    <td><strong>${l.student_id}</strong></td>
-    <td><span class="badge action-${l.action}">${l.action}</span></td>
-    <td style="font-size:0.82rem;color:var(--text2)">${new Date(l.timestamp).toLocaleString('vi-VN')}</td>
-    <td style="font-size:0.78rem;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis">${l.ip_hint || '—'}</td>
-  </tr>`).join('');
+  const actionLabel = { lookup:'🔍 Tra điểm', bulk_send:'📨 Gửi loạt', phuc_khao:'📋 Phúc khảo', lookup_notfound:'❌ Không tìm thấy' };
+  tb.innerHTML = data.map(l => {
+    const act = l.action || 'lookup';
+    return `<tr>
+      <td><strong>${l.student_id || '—'}</strong></td>
+      <td><span class="badge action-${act}" style="white-space:nowrap">${actionLabel[act] || act}</span></td>
+      <td style="font-size:0.82rem;color:var(--text2)">${fmtDate(l.timestamp)}</td>
+      <td style="font-size:0.78rem;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis">${l.ip_hint || '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ═══════════════════════
