@@ -875,7 +875,10 @@ footer {
     <div class="tab-panel active" id="tab-students">
       <div class="bulk-bar">
         <div class="info">Gửi email hàng loạt: <strong id="bulk-count">0</strong> sinh viên phù hợp với filter hiện tại</div>
-        <button class="btn-primary" style="padding:10px 24px;font-size:0.9rem" onclick="doBulkSend()">📨 Gửi hàng loạt</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" style="padding:10px 20px;font-size:0.85rem;border-radius:100px" onclick="doRepairScores()" title="Sửa các ô điểm bị Sheets chuyển thành Date">🔧 Sửa điểm Date</button>
+          <button class="btn-primary" style="padding:10px 24px;font-size:0.9rem" onclick="doBulkSend()">📨 Gửi hàng loạt</button>
+        </div>
       </div>
       <div class="table-toolbar">
         <input type="text" class="search-input" placeholder="🔍 Tìm MSSV hoặc tên..." oninput="filterStudents()">
@@ -1010,7 +1013,7 @@ footer {
 // ═══════════════════════
 // CONFIG — SỬA Ở ĐÂY
 // ═══════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyYG4hgubvMhhK6e7oArf1bqUnEa_VTPPbcORVRxfJBakCyjP8QZ8zc4E3v-YqBXiPA/exec'; // ← Thay bằng URL deploy từ Apps Script
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxS3BQY5y4Iw47hPiph2PtitY-xoyNq0zYKhFsnoMF0iANii0_9Gll9ojEjh83gJxE2/exec'; // ← Thay bằng URL deploy từ Apps Script
 const GOOGLE_CLIENT_ID = '613892430345-rgaj7l28fnr8d0u2uckbiegpv09ue2qp.apps.googleusercontent.com'; // ← Thay bằng OAuth Client ID
 const COOLDOWN_SECONDS = 10;
 
@@ -1434,6 +1437,20 @@ async function doBulkSend() {
       loadStudents(); loadStats();
     } else {
       showToast(`❌ ${res.message || 'Lỗi gửi email'}`);
+    }
+  } catch(e) { showToast('❌ Lỗi kết nối'); }
+}
+
+async function doRepairScores() {
+  if (!confirm('Sửa toàn bộ ô điểm bị lưu dạng Date trong Google Sheets?\nThao tác này không thể hoàn tác.')) return;
+  showToast('⏳ Đang sửa dữ liệu...', 5000);
+  try {
+    const res = await callGAS('repair_scores', { token: adminToken });
+    if (res.status === 'success') {
+      showToast(`✅ Đã sửa ${res.fixed} ô điểm bị lỗi Date`);
+      loadStudents(); loadStats();
+    } else {
+      showToast(`❌ ${res.message || 'Lỗi repair'}`);
     }
   } catch(e) { showToast('❌ Lỗi kết nối'); }
 }
