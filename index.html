@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GradeCheck — Tra cứu Điểm HCMUTE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- AOS CSS vẫn cần load trước -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
+/* ═══════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════ */
+:root {
+  --pink: #ff80ab;
+  --blue: #80d8ff;
+  --purple: #ea80fc;
+  --green: #69f0ae;
+  --yellow: #ffd740;
+  --red: #ff5252;
+
+  --bg: #f8f9ff;
+  --bg2: #eef0fb;
+  --surface: rgba(255,255,255,0.7);
+  --surface2: rgba(255,255,255,0.5);
+  --border: rgba(0,0,0,0.08);
+  --text: #1a1a2e;
+  --text2: #5a5a7a;
+  --text3: #9898b8;
+  --shadow: rgba(100,100,200,0.12);
+
+  --grad1: linear-gradient(135deg, #ffd6e7 0%, #c8e6ff 50%, #e8d5ff 100%);
+  --grad2: linear-gradient(135deg, #ff80ab22, #80d8ff22, #ea80fc22);
+
+  --r: 16px;
+  --r2: 24px;
+  --r3: 32px;
+  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --bg2: #1e293b;
+  --surface: rgba(30,41,59,0.8);
+  --surface2: rgba(15,23,42,0.6);
+  --border: rgba(255,255,255,0.08);
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #475569;
+  --shadow: rgba(0,0,0,0.4);
+  --grad1: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+}
+
+/* ═══════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  scroll-behavior: smooth;
+  overflow-y: scroll;
+}
+* { scroll-behavior: smooth; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background var(--transition), color var(--transition);
+  overflow-x: clip;
+  cursor: none;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: none; font-family: inherit; }
+input, textarea { font-family: inherit; }
+
+/* ═══════════════════════════════════════════
+   CUSTOM CURSOR
+═══════════════════════════════════════════ */
+#cursor-dot {
+  width: 8px; height: 8px;
+  background: var(--pink);
+  border-radius: 50%;
+  position: fixed; top: 0; left: 0;
+  pointer-events: none; z-index: 10000;
+  transition: transform 0.1s;
+}
+#cursor-ring {
+  width: 36px; height: 36px;
+  border: 2px solid var(--pink);
+  border-radius: 50%;
+  position: fixed; top: 0; left: 0;
+  pointer-events: none; z-index: 9999;
+  transition: transform 0.12s ease, width 0.2s, height 0.2s, opacity 0.2s;
+  opacity: 0.6;
+}
+#cursor-ring.hover {
+  width: 56px; height: 56px;
+  opacity: 0.4;
+  border-color: var(--purple);
+}
+
+/* ═══════════════════════════════════════════
+   MESH BACKGROUND
+═══════════════════════════════════════════ */
+.mesh-bg {
+  position: fixed; inset: 0; z-index: -1;
+  background: var(--bg);
+  overflow: hidden;
+}
+.mesh-bg::before {
+  content: '';
+  position: absolute; inset: -50%;
+  background: radial-gradient(ellipse at 20% 20%, var(--pink)20 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 80%, var(--blue)20 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 50%, var(--purple)15 0%, transparent 60%);
+  animation: meshMove 12s ease-in-out infinite alternate;
+}
+@keyframes meshMove {
+  0% { transform: translate(0,0) scale(1); }
+  100% { transform: translate(3%, 2%) scale(1.05); }
+}
+
+/* ═══════════════════════════════════════════
+   NAVBAR
+═══════════════════════════════════════════ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  padding: 16px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  transition: all var(--transition);
+}
+.nav-logo {
+  font-size: 1.3rem; font-weight: 800;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.nav-links { display: flex; align-items: center; gap: 8px; }
+.nav-links a {
+  padding: 8px 16px; border-radius: 100px;
+  font-size: 0.9rem; font-weight: 500; color: var(--text2);
+  transition: all var(--transition);
+}
+.nav-links a:hover { background: var(--bg2); color: var(--text); }
+.nav-actions { display: flex; align-items: center; gap: 12px; }
+#theme-toggle {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; color: var(--text2);
+  transition: all var(--transition);
+}
+#theme-toggle:hover { background: var(--surface); color: var(--text); }
+
+/* ═══════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════ */
+#hero {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 100px 40px 60px;
+  text-align: center;
+  position: relative;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 20px; border-radius: 100px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 0.85rem; font-weight: 500; color: var(--text2);
+  margin-bottom: 32px;
+  backdrop-filter: blur(10px);
+}
+.hero-badge span { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.hero-title {
+  font-size: clamp(3rem, 8vw, 6.5rem);
+  font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.03em; margin-bottom: 24px;
+}
+.hero-title .grad {
+  background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 50%, var(--blue) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: 1.2rem; color: var(--text2); max-width: 560px; margin: 0 auto 48px;
+  line-height: 1.7;
+}
+.hero-cta { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.btn-primary {
+  padding: 16px 36px; border-radius: 100px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white; font-weight: 600; font-size: 1rem; border: none;
+  box-shadow: 0 8px 32px rgba(255,128,171,0.35);
+  transition: all var(--transition);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(255,128,171,0.45); }
+.btn-secondary {
+  padding: 15px 32px; border-radius: 100px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-weight: 500; font-size: 1rem;
+  backdrop-filter: blur(10px);
+  transition: all var(--transition);
+}
+.btn-secondary:hover { background: var(--bg2); }
+.hero-stats {
+  display: flex; justify-content: center; gap: 48px;
+  margin-top: 80px; flex-wrap: wrap;
+}
+.stat { text-align: center; }
+.stat-num { font-size: 2rem; font-weight: 800; color: var(--text); }
+.stat-num span { background: linear-gradient(135deg, var(--pink), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.stat-label { font-size: 0.85rem; color: var(--text3); margin-top: 4px; }
+.hero-scroll {
+  position: absolute; bottom: 40px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: var(--text3); font-size: 0.8rem;
+  animation: bounce 2s infinite;
+}
+@keyframes bounce { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(6px); } }
+
+/* ═══════════════════════════════════════════
+   SECTIONS COMMON
+═══════════════════════════════════════════ */
+section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
+.section-label {
+  display: inline-block; padding: 6px 16px; border-radius: 100px;
+  background: var(--grad2); border: 1px solid var(--border);
+  font-size: 0.8rem; font-weight: 600; color: var(--pink);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;
+}
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+  line-height: 1.2; margin-bottom: 16px;
+}
+.section-sub { font-size: 1.05rem; color: var(--text2); max-width: 560px; line-height: 1.7; }
+
+/* Glass card */
+.glass-card {
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  box-shadow: 0 4px 40px var(--shadow);
+  transition: all var(--transition);
+}
+.glass-card:hover { box-shadow: 0 8px 60px var(--shadow); transform: translateY(-2px); }
+
+/* ═══════════════════════════════════════════
+   LOOKUP SECTION
+═══════════════════════════════════════════ */
+#lookup { text-align: center; }
+.lookup-card { padding: 56px 48px; max-width: 580px; margin: 56px auto 0; }
+.input-wrapper {
+  position: relative; margin-bottom: 16px;
+}
+.input-wrapper input {
+  width: 100%; padding: 18px 64px 18px 24px;
+  border-radius: 100px; border: 2px solid var(--border);
+  background: var(--bg2); color: var(--text);
+  font-size: 1.05rem; font-weight: 500;
+  outline: none; transition: all var(--transition);
+}
+.input-wrapper input:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 4px rgba(255,128,171,0.1);
+  background: var(--surface);
+}
+.input-wrapper input::placeholder { color: var(--text3); }
+.input-icon {
+  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+  font-size: 1.1rem; color: var(--text3);
+}
+#lookup-btn {
+  width: 100%; padding: 18px;
+  border-radius: 100px; border: none;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white; font-size: 1.05rem; font-weight: 600;
+  box-shadow: 0 8px 32px rgba(255,128,171,0.3);
+  transition: all var(--transition);
+}
+#lookup-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(255,128,171,0.4); }
+#lookup-btn:disabled { opacity: 0.5; }
+#lookup-status {
+  margin-top: 20px; padding: 16px 24px; border-radius: var(--r);
+  font-size: 0.95rem; font-weight: 500; display: none;
+}
+.status-success { background: rgba(105,240,174,0.15); color: #2e7d32; border: 1px solid rgba(105,240,174,0.3); }
+.status-error { background: rgba(255,82,82,0.1); color: #c62828; border: 1px solid rgba(255,82,82,0.2); }
+.status-loading { background: rgba(128,216,255,0.15); color: #0277bd; border: 1px solid rgba(128,216,255,0.3); }
+.cooldown-bar { height: 3px; background: var(--bg2); border-radius: 100px; margin-top: 12px; overflow: hidden; }
+.cooldown-fill { height: 100%; background: linear-gradient(90deg, var(--pink), var(--purple)); border-radius: 100px; transition: width 1s linear; }
+
+/* ═══════════════════════════════════════════
+   REVIEW (PHÚC KHẢO)
+═══════════════════════════════════════════ */
+#review { text-align: center; }
+.review-card { padding: 56px 48px; max-width: 580px; margin: 56px auto 0; }
+.review-card textarea {
+  width: 100%; padding: 18px 24px;
+  border-radius: var(--r); border: 2px solid var(--border);
+  background: var(--bg2); color: var(--text);
+  font-size: 1rem; line-height: 1.6;
+  resize: vertical; min-height: 120px;
+  outline: none; transition: all var(--transition); margin-bottom: 16px;
+}
+.review-card textarea:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(234,128,252,0.1);
+  background: var(--surface);
+}
+#review-btn {
+  width: 100%; padding: 18px; border-radius: 100px; border: none;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  color: white; font-size: 1.05rem; font-weight: 600;
+  box-shadow: 0 8px 32px rgba(234,128,252,0.3);
+  transition: all var(--transition);
+}
+#review-btn:hover:not(:disabled) { transform: translateY(-2px); }
+#review-status {
+  margin-top: 20px; padding: 16px 24px; border-radius: var(--r);
+  font-size: 0.95rem; font-weight: 500; display: none;
+}
+
+/* ═══════════════════════════════════════════
+   ABOUT / TEAM
+═══════════════════════════════════════════ */
+#about { text-align: center; }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin-top: 56px; }
+.team-card { padding: 40px 24px; text-align: center; border-radius: var(--r2); }
+.team-avatar {
+  width: 90px; height: 90px; border-radius: 50%; margin: 0 auto 20px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; color: white;
+  overflow: hidden;
+}
+.team-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.team-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.team-id { font-size: 0.85rem; color: var(--text3); margin-bottom: 8px; }
+.team-role {
+  display: inline-block; padding: 4px 14px; border-radius: 100px;
+  font-size: 0.78rem; font-weight: 600;
+  background: var(--grad2); border: 1px solid var(--border); color: var(--text2);
+}
+
+/* ═══════════════════════════════════════════
+   TECH STACK
+═══════════════════════════════════════════ */
+#tech { text-align: center; }
+.tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 56px; }
+.tech-card { padding: 32px 24px; border-radius: var(--r2); text-align: left; }
+.tech-icon { font-size: 2rem; margin-bottom: 16px; }
+.tech-name { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+.tech-desc { font-size: 0.88rem; color: var(--text2); line-height: 1.6; }
+
+/* ═══════════════════════════════════════════
+   ADMIN SECTION
+═══════════════════════════════════════════ */
+#admin { max-width: 1200px; }
+#admin-login-state { text-align: center; padding: 80px 40px; }
+#admin-login-state .login-icon { font-size: 4rem; margin-bottom: 24px; }
+#admin-login-state h2 { font-size: 2rem; font-weight: 700; margin-bottom: 12px; }
+#admin-login-state p { color: var(--text2); margin-bottom: 32px; }
+#google-login-btn {
+  padding: 16px 40px; border-radius: 100px; border: none;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-size: 1rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 12px;
+  box-shadow: 0 4px 20px var(--shadow);
+  transition: all var(--transition);
+}
+#google-login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px var(--shadow); }
+
+/* Dashboard */
+#admin-dashboard { display: none; }
+.dashboard-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 32px; flex-wrap: wrap; gap: 16px;
+}
+.profile-chip {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px 8px 8px; border-radius: 100px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.profile-chip img {
+  width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+}
+.profile-chip .name { font-weight: 600; font-size: 0.95rem; }
+.profile-chip .email { font-size: 0.78rem; color: var(--text3); }
+#logout-btn {
+  padding: 8px 20px; border-radius: 100px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2); font-size: 0.88rem; font-weight: 500;
+  transition: all var(--transition);
+}
+#logout-btn:hover { background: rgba(255,82,82,0.1); color: var(--red); border-color: var(--red); }
+
+/* Stats row */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.stat-card { padding: 24px 28px; border-radius: var(--r); }
+.stat-card .val { font-size: 2rem; font-weight: 800; margin-bottom: 4px; }
+.stat-card .lbl { font-size: 0.85rem; color: var(--text2); }
+.val.pink { color: var(--pink); }
+.val.blue { color: var(--blue); }
+.val.yellow { color: var(--yellow); }
+.val.green { color: var(--green); }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 32px; overflow-x: auto; }
+.tab-btn {
+  padding: 12px 24px; border-radius: 12px 12px 0 0; border: none;
+  background: transparent; color: var(--text2); font-size: 0.9rem; font-weight: 500;
+  white-space: nowrap; transition: all var(--transition);
+}
+.tab-btn.active { background: var(--surface); color: var(--text); font-weight: 600; border: 1px solid var(--border); border-bottom: 1px solid var(--surface); }
+.tab-btn:hover:not(.active) { background: var(--bg2); color: var(--text); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Table */
+.table-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-select {
+  padding: 10px 16px; border-radius: 100px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 0.88rem;
+  outline: none; cursor: pointer;
+}
+.search-input {
+  flex: 1; min-width: 200px; padding: 10px 18px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 0.88rem; outline: none; transition: all var(--transition);
+}
+.search-input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255,128,171,0.1); }
+.table-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+thead { background: var(--bg2); }
+th {
+  padding: 14px 16px; text-align: left; font-size: 0.82rem;
+  font-weight: 600; color: var(--text2); white-space: nowrap;
+  cursor: pointer; user-select: none;
+}
+th:hover { color: var(--text); }
+td { padding: 14px 16px; font-size: 0.9rem; border-top: 1px solid var(--border); }
+tr:hover td { background: var(--bg2); }
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 12px;
+  border-radius: 100px; font-size: 0.78rem; font-weight: 600;
+}
+.badge-sent { background: rgba(105,240,174,0.15); color: #2e7d32; }
+.badge-unsent { background: rgba(255,82,82,0.1); color: #c62828; }
+.badge-pending { background: rgba(255,215,64,0.15); color: #e65100; }
+.badge-approved { background: rgba(105,240,174,0.15); color: #2e7d32; }
+.badge-rejected { background: rgba(255,82,82,0.1); color: #c62828; }
+.grade-A { color: var(--green); font-weight: 700; }
+.grade-B { color: var(--blue); font-weight: 700; }
+.grade-C { color: var(--yellow); font-weight: 700; }
+.grade-D { color: #ff9800; font-weight: 700; }
+.grade-F { color: var(--red); font-weight: 700; }
+
+/* Bulk send bar */
+.bulk-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(255,128,171,0.1), rgba(234,128,252,0.1));
+  border: 1px solid rgba(255,128,171,0.2);
+  margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+}
+.bulk-bar .info { font-size: 0.9rem; color: var(--text2); }
+.bulk-bar .info strong { color: var(--text); }
+
+/* Import */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: var(--r2);
+  padding: 60px 40px; text-align: center; cursor: pointer;
+  transition: all var(--transition);
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--pink); background: rgba(255,128,171,0.05); }
+.upload-zone .icon { font-size: 3rem; margin-bottom: 16px; color: var(--text3); }
+.upload-zone h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+.upload-zone p { font-size: 0.9rem; color: var(--text2); }
+#csv-preview { display: none; margin-top: 24px; }
+.preview-label { font-size: 0.85rem; color: var(--text2); margin-bottom: 12px; }
+
+/* Review table actions */
+.action-btns { display: flex; gap: 8px; }
+.btn-approve {
+  padding: 6px 16px; border-radius: 100px; border: none;
+  background: rgba(105,240,174,0.15); color: #2e7d32;
+  font-size: 0.82rem; font-weight: 600; transition: all var(--transition);
+}
+.btn-reject {
+  padding: 6px 16px; border-radius: 100px; border: none;
+  background: rgba(255,82,82,0.1); color: #c62828;
+  font-size: 0.82rem; font-weight: 600; transition: all var(--transition);
+}
+.btn-approve:hover { background: rgba(105,240,174,0.3); }
+.btn-reject:hover { background: rgba(255,82,82,0.2); }
+
+/* Log table */
+.action-lookup { background: rgba(128,216,255,0.15); color: #0277bd; }
+.action-bulk_send { background: rgba(255,128,171,0.15); color: #c2185b; }
+.action-phuc_khao { background: rgba(234,128,252,0.15); color: #7b1fa2; }
+
+/* Profile tab */
+.profile-section { max-width: 500px; }
+.profile-section .avatar-big {
+  width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--pink);
+  margin-bottom: 24px;
+}
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 0.88rem; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.form-group input {
+  width: 100%; padding: 14px 18px; border-radius: var(--r); border: 1px solid var(--border);
+  background: var(--bg2); color: var(--text); font-size: 0.95rem; outline: none;
+  transition: all var(--transition);
+}
+.form-group input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255,128,171,0.1); background: var(--surface); }
+.form-group input[readonly] { opacity: 0.6; }
+
+/* ═══════════════════════════════════════════
+   MODAL (NOTE DIALOG)
+═══════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: all var(--transition);
+}
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r2);
+  padding: 40px; max-width: 480px; width: 90%;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+  transform: translateY(20px); transition: all var(--transition);
+}
+.modal-overlay.show .modal-box { transform: translateY(0); }
+.modal-box h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+.modal-box p { color: var(--text2); font-size: 0.9rem; margin-bottom: 24px; }
+.modal-box textarea {
+  width: 100%; padding: 14px 18px; border-radius: var(--r); border: 1px solid var(--border);
+  background: var(--bg2); color: var(--text); font-size: 0.95rem;
+  resize: none; min-height: 100px; outline: none; margin-bottom: 20px;
+  transition: all var(--transition);
+}
+.modal-box textarea:focus { border-color: var(--pink); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.modal-cancel {
+  padding: 10px 24px; border-radius: 100px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2); font-size: 0.9rem; font-weight: 500;
+}
+.modal-confirm {
+  padding: 10px 24px; border-radius: 100px; border: none;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white; font-size: 0.9rem; font-weight: 600;
+}
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 32px; right: 32px; z-index: 9000;
+  padding: 14px 24px; border-radius: var(--r);
+  background: var(--text); color: var(--bg);
+  font-size: 0.9rem; font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  transform: translateY(80px); opacity: 0;
+  transition: all var(--transition);
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+
+/* ═══════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════ */
+footer {
+  text-align: center; padding: 40px;
+  color: var(--text3); font-size: 0.85rem;
+  border-top: 1px solid var(--border); margin-top: 40px;
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════ */
+@media (max-width: 768px) {
+  nav { padding: 12px 20px; }
+  .nav-links { display: none; }
+  section { padding: 60px 20px; }
+  #hero { padding: 80px 20px 40px; }
+  .lookup-card, .review-card { padding: 32px 24px; }
+  #admin { max-width: 100%; }
+}
+
+/* ═══════════════════════════════════════════
+   LOADING SKELETON
+═══════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--border) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Divider */
+.section-divider {
+  height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 0 40px;
+}
+
+.quota-info { font-size: 0.82rem; color: var(--text3); margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- Cursor -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+
+<!-- Mesh background -->
+<div class="mesh-bg"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Modal (note for resolve review) -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <h3 id="modal-title">Ghi chú duyệt phúc khảo</h3>
+    <p id="modal-desc">Thêm ghi chú cho sinh viên (không bắt buộc)</p>
+    <textarea id="modal-note" placeholder="Nhập ghi chú..."></textarea>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Hủy</button>
+      <button class="modal-confirm" id="modal-confirm-btn">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NAVBAR ═══ -->
+<nav>
+  <div class="nav-logo">✦ GradeCheck</div>
+  <div class="nav-links">
+    <a href="#lookup">Tra điểm</a>
+    <a href="#review">Phúc khảo</a>
+    <a href="#about">Nhóm</a>
+    <a href="#admin">Admin</a>
+  </div>
+  <div class="nav-actions">
+    <button id="theme-toggle" title="Đổi theme" onclick="toggleTheme()">🌙</button>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section id="hero">
+  <div>
+    <div class="hero-badge" data-aos="fade-down">
+      <span></span> Hệ thống Tra cứu Điểm — HCMUTE
+    </div>
+    <h1 class="hero-title" data-aos="fade-up" data-aos-delay="100">
+      Điểm của bạn<br><span class="grad">chỉ bạn biết</span>
+    </h1>
+    <p class="hero-sub" data-aos="fade-up" data-aos-delay="200">
+      Tra cứu điểm riêng tư qua email. Không cần tài khoản, không lộ thông tin người khác.
+    </p>
+    <div class="hero-cta" data-aos="fade-up" data-aos-delay="300">
+      <a href="#lookup" class="btn-primary">🔍 Tra điểm ngay</a>
+      <a href="#review" class="btn-secondary">📋 Phúc khảo điểm</a>
+    </div>
+    <div class="hero-stats" data-aos="fade-up" data-aos-delay="400">
+      <div class="stat"><div class="stat-num"><span id="stat-sv">—</span></div><div class="stat-label">Sinh viên</div></div>
+      <div class="stat"><div class="stat-num"><span id="stat-sent">—</span></div><div class="stat-label">Email đã gửi</div></div>
+      <div class="stat"><div class="stat-num"><span id="stat-pk">—</span></div><div class="stat-label">Phúc khảo</div></div>
+    </div>
+  </div>
+  <div class="hero-scroll">▼ <span>Cuộn xuống</span></div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══ LOOKUP ═══ -->
+<section id="lookup" data-aos="fade-up">
+  <div style="text-align:center">
+    <div class="section-label">Tra cứu điểm</div>
+    <h2 class="section-title">Nhập MSSV để nhận điểm qua email</h2>
+    <p class="section-sub" style="margin:0 auto">Điểm sẽ được gửi về email sinh viên <strong>@student.hcmute.edu.vn</strong>. Không ai khác thấy được điểm của bạn.</p>
+  </div>
+  <div class="glass-card lookup-card" data-aos="zoom-in" data-aos-delay="100">
+    <div class="input-wrapper">
+      <input type="text" id="mssv-input" placeholder="Nhập MSSV của bạn (vd: 22110xxx)" maxlength="20" autocomplete="off">
+      <span class="input-icon">🎓</span>
+    </div>
+    <button id="lookup-btn" onclick="doLookup()">📨 Gửi điểm về email</button>
+    <div id="lookup-status"></div>
+    <div class="cooldown-bar" id="cooldown-bar" style="display:none">
+      <div class="cooldown-fill" id="cooldown-fill" style="width:100%"></div>
+    </div>
+    <p id="cooldown-text" style="display:none; margin-top:8px; font-size:0.82rem; color:var(--text3); text-align:center"></p>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══ REVIEW ═══ -->
+<section id="review" data-aos="fade-up">
+  <div style="text-align:center">
+    <div class="section-label">Phúc khảo</div>
+    <h2 class="section-title">Phản ánh / Yêu cầu phúc khảo</h2>
+    <p class="section-sub" style="margin:0 auto">Nếu bạn có thắc mắc về điểm số, hãy gửi yêu cầu. Giảng viên sẽ xem xét và phản hồi qua email.</p>
+  </div>
+  <div class="glass-card review-card" data-aos="zoom-in" data-aos-delay="100">
+    <div class="input-wrapper" style="margin-bottom:16px">
+      <input type="text" id="review-mssv" placeholder="Nhập MSSV của bạn" maxlength="20" autocomplete="off">
+      <span class="input-icon">🎓</span>
+    </div>
+    <textarea id="review-reason" placeholder="Mô tả lý do phúc khảo của bạn... (vd: Điểm bài kiểm tra giữa kỳ có vẻ không đúng với bài làm của tôi)"></textarea>
+    <button id="review-btn" onclick="doReview()">📤 Gửi yêu cầu phúc khảo</button>
+    <div id="review-status"></div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══ ABOUT ═══ -->
+<section id="about" data-aos="fade-up">
+  <div class="section-label">Nhóm thực hiện</div>
+  <h2 class="section-title">Thành viên nhóm</h2>
+  <p class="section-sub">Môn: Ứng dụng Công nghệ Thông tin Cơ bản — HCMUTE</p>
+  <div class="team-grid">
+    <!-- Thay tên/MSSV/ảnh thật vào đây -->
+    <div class="glass-card team-card" data-aos="fade-up" data-aos-delay="0">
+      <div class="team-avatar">A</div>
+      <div class="team-name">Nguyễn Văn A</div>
+      <div class="team-id">MSSV: 22110001</div>
+      <div class="team-role">Frontend & Design</div>
+    </div>
+    <div class="glass-card team-card" data-aos="fade-up" data-aos-delay="80">
+      <div class="team-avatar" style="background:linear-gradient(135deg,var(--blue),var(--purple))">B</div>
+      <div class="team-name">Trần Thị B</div>
+      <div class="team-id">MSSV: 22110002</div>
+      <div class="team-role">Google Apps Script</div>
+    </div>
+    <div class="glass-card team-card" data-aos="fade-up" data-aos-delay="160">
+      <div class="team-avatar" style="background:linear-gradient(135deg,var(--purple),var(--pink))">C</div>
+      <div class="team-name">Lê Văn C</div>
+      <div class="team-id">MSSV: 22110003</div>
+      <div class="team-role">Google Sheets & Data</div>
+    </div>
+    <div class="glass-card team-card" data-aos="fade-up" data-aos-delay="240">
+      <div class="team-avatar" style="background:linear-gradient(135deg,var(--green),var(--blue))">D</div>
+      <div class="team-name">Phạm Thị D</div>
+      <div class="team-id">MSSV: 22110004</div>
+      <div class="team-role">Testing & Docs</div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══ TECH ═══ -->
+<section id="tech" data-aos="fade-up">
+  <div class="section-label">Công nghệ</div>
+  <h2 class="section-title">Stack sử dụng</h2>
+  <p class="section-sub">Hoàn toàn miễn phí, không cần server riêng.</p>
+  <div class="tech-grid">
+    <div class="glass-card tech-card" data-aos="fade-up" data-aos-delay="0">
+      <div class="tech-icon">📊</div>
+      <div class="tech-name">Google Sheets</div>
+      <div class="tech-desc">Lưu trữ dữ liệu điểm, phúc khảo và lịch sử gửi email. Dễ quản lý, không cần database.</div>
+    </div>
+    <div class="glass-card tech-card" data-aos="fade-up" data-aos-delay="80">
+      <div class="tech-icon">⚡</div>
+      <div class="tech-name">Google Apps Script</div>
+      <div class="tech-desc">Backend serverless xử lý logic tra cứu, gửi email Gmail API, xác thực OAuth admin.</div>
+    </div>
+    <div class="glass-card tech-card" data-aos="fade-up" data-aos-delay="160">
+      <div class="tech-icon">📧</div>
+      <div class="tech-name">Gmail API</div>
+      <div class="tech-desc">Gửi email điểm HTML đẹp về từng sinh viên. Hỗ trợ gửi hàng loạt có chọn lọc.</div>
+    </div>
+    <div class="glass-card tech-card" data-aos="fade-up" data-aos-delay="240">
+      <div class="tech-icon">🔐</div>
+      <div class="tech-name">Google OAuth 2.0</div>
+      <div class="tech-desc">Xác thực giảng viên an toàn bằng Google Account. Token lưu session, không cần mật khẩu riêng.</div>
+    </div>
+    <div class="glass-card tech-card" data-aos="fade-up" data-aos-delay="320">
+      <div class="tech-icon">🎨</div>
+      <div class="tech-name">HTML/CSS/JS</div>
+      <div class="tech-desc">Single-file frontend. Glassmorphism + mesh gradient. Không cần framework, không cần build.</div>
+    </div>
+    <div class="glass-card tech-card" data-aos="fade-up" data-aos-delay="400">
+      <div class="tech-icon">🆓</div>
+      <div class="tech-name">100% Free</div>
+      <div class="tech-desc">Không tốn phí hosting, database, hay domain. Toàn bộ chạy trên hạ tầng Google miễn phí.</div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══ ADMIN ═══ -->
+<section id="admin" data-aos="fade-up">
+  <div class="section-label">Quản lý</div>
+  <h2 class="section-title">Khu vực Giảng viên</h2>
+
+  <!-- Login state -->
+  <div id="admin-login-state" class="glass-card" style="margin-top:40px">
+    <div class="login-icon">🔐</div>
+    <h2>Đăng nhập để quản lý</h2>
+    <p>Chỉ dành cho giảng viên được cấp quyền truy cập.</p>
+    <button id="google-login-btn" onclick="startGoogleLogin()">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Đăng nhập bằng Google
+    </button>
+    <p style="font-size:0.8rem;color:var(--text3);margin-top:16px">
+      💡 Cần cấu hình <code>ADMIN_EMAIL</code> trong Code.gs để xác thực
+    </p>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="admin-dashboard">
+    <div class="dashboard-header">
+      <div class="profile-chip">
+        <img id="admin-avatar" src="" alt="">
+        <div>
+          <div class="name" id="admin-name">Loading...</div>
+          <div class="email" id="admin-email"></div>
+        </div>
+      </div>
+      <button id="logout-btn" onclick="doLogout()">Đăng xuất</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="glass-card stat-card">
+        <div class="val pink" id="dash-total">—</div>
+        <div class="lbl">Tổng sinh viên</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="val green" id="dash-sent">—</div>
+        <div class="lbl">Đã gửi email</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="val yellow" id="dash-pending">—</div>
+        <div class="lbl">Phúc khảo chờ duyệt</div>
+      </div>
+      <div class="glass-card stat-card">
+        <div class="val blue" id="dash-quota">—</div>
+        <div class="lbl">Email quota còn lại</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-students', this)">📋 Danh sách điểm</button>
+      <button class="tab-btn" onclick="switchTab('tab-import', this)">📥 Import CSV</button>
+      <button class="tab-btn" onclick="switchTab('tab-reviews', this)">🔍 Phúc khảo</button>
+      <button class="tab-btn" onclick="switchTab('tab-log', this)">📜 Lịch sử</button>
+      <button class="tab-btn" onclick="switchTab('tab-profile', this)">👤 Hồ sơ</button>
+    </div>
+
+    <!-- Tab: Students -->
+    <div class="tab-panel active" id="tab-students">
+      <div class="bulk-bar">
+        <div class="info">Gửi email hàng loạt: <strong id="bulk-count">0</strong> sinh viên phù hợp với filter hiện tại</div>
+        <button class="btn-primary" style="padding:10px 24px;font-size:0.9rem" onclick="doBulkSend()">📨 Gửi hàng loạt</button>
+      </div>
+      <div class="table-toolbar">
+        <input type="text" class="search-input" placeholder="🔍 Tìm MSSV hoặc tên..." oninput="filterStudents()">
+        <select class="filter-select" id="filter-grade" onchange="filterStudents()">
+          <option value="">Tất cả xếp loại</option>
+          <option value="A">Xuất sắc (A)</option>
+          <option value="B">Giỏi (B)</option>
+          <option value="C">Khá (C)</option>
+          <option value="D">Trung bình (D)</option>
+          <option value="F">Không đạt (F)</option>
+        </select>
+        <select class="filter-select" id="filter-sent" onchange="filterStudents()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="sent">Đã gửi</option>
+          <option value="unsent">Chưa gửi</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortStudents('student_id')">MSSV ↕</th>
+              <th onclick="sortStudents('midterm_score')">Giữa kỳ ↕</th>
+              <th onclick="sortStudents('final_score')">Cuối kỳ ↕</th>
+              <th onclick="sortStudents('total_score')">Tổng kết ↕</th>
+              <th>Xếp loại</th>
+              <th>Email</th>
+              <th>Gửi lần cuối</th>
+            </tr>
+          </thead>
+          <tbody id="students-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">Chưa có dữ liệu. Import CSV hoặc thêm dữ liệu vào Google Sheets.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Import -->
+    <div class="tab-panel" id="tab-import">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-file').click()"
+           ondragover="e=>e.preventDefault()" ondrop="handleDrop(event)">
+        <div class="icon">📄</div>
+        <h3>Kéo thả file CSV vào đây</h3>
+        <p>hoặc click để chọn file — hỗ trợ .csv và .xlsx</p>
+      </div>
+      <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFileSelect(event)">
+      <div id="csv-preview">
+        <div class="preview-label">📋 Xem trước 5 dòng đầu:</div>
+        <div class="table-wrap" id="preview-table-wrap"></div>
+        <div style="margin-top:16px;display:flex;gap:12px;align-items:center">
+          <button class="btn-primary" style="padding:12px 28px;font-size:0.9rem" onclick="confirmImport()" id="import-confirm-btn">✅ Xác nhận import</button>
+          <button class="btn-secondary" style="padding:11px 24px;font-size:0.9rem" onclick="cancelImport()">Hủy</button>
+          <span id="detected-cols" style="font-size:0.85rem;color:var(--text2)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Reviews -->
+    <div class="tab-panel" id="tab-reviews">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>MSSV</th>
+              <th>Nội dung phúc khảo</th>
+              <th>Thời gian gửi</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="reviews-tbody">
+            <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:40px">Không có yêu cầu phúc khảo nào đang chờ.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Log -->
+    <div class="tab-panel" id="tab-log">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>MSSV</th>
+              <th>Hành động</th>
+              <th>Thời gian</th>
+              <th>User-Agent</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody">
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:40px">Chưa có lịch sử nào.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Profile -->
+    <div class="tab-panel" id="tab-profile">
+      <div class="profile-section">
+        <img id="profile-avatar-big" class="avatar-big" src="" alt="">
+        <h3 id="profile-name-big" style="font-size:1.4rem;font-weight:700;margin-bottom:4px">—</h3>
+        <p id="profile-email-big" style="color:var(--text2);margin-bottom:32px">—</p>
+        <div class="form-group">
+          <label>Tên môn học</label>
+          <input type="text" id="prof-subject" placeholder="Ứng dụng Công nghệ Thông tin Cơ bản">
+        </div>
+        <div class="form-group">
+          <label>Lớp</label>
+          <input type="text" id="prof-class" placeholder="22CNTT1, 22CNTT2...">
+        </div>
+        <div class="form-group">
+          <label>Học kỳ</label>
+          <input type="text" id="prof-semester" placeholder="HK1 2024-2025">
+        </div>
+        <button class="btn-primary" style="padding:12px 28px" onclick="saveProfile()">💾 Lưu thông tin</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>✦ GradeCheck — Hệ thống Tra cứu Điểm &amp; Phúc khảo | HCMUTE</p>
+  <p style="margin-top:8px">Được xây dựng với HTML/CSS/JS + Google Apps Script + Google Sheets</p>
+</footer>
+
+<!-- ═══════════════════════════════════════════
+   JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+// ═══════════════════════
+// CONFIG — SỬA Ở ĐÂY
+// ═══════════════════════
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxte_GN94q7r7w1JG8ScCwakMXjiH8egElOTFJYrtBkqekt80Ou2tEfOB68IyPzLnS9/exec'; 
+const GOOGLE_CLIENT_ID = '613892430345-rgaj7l28fnr8d0u2uckbiegpv09ue2qp.apps.googleusercontent.com'; 
+const COOLDOWN_SECONDS = 60;
+
+// ═══════════════════════
+// INIT
+// ═══════════════════════
+
+// AOS
+const aosScript = document.createElement('script');
+aosScript.src = 'https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js';
+aosScript.onload = () => AOS.init({ once: true, duration: 700, easing: 'ease-out-cubic', offset: 60 });
+document.head.appendChild(aosScript);
+
+// Smooth anchor scroll (offset 80px cho navbar)
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (!target) return;
+    e.preventDefault();
+    const top = target.getBoundingClientRect().top + window.scrollY - 80;
+    window.scrollTo({ top, behavior: 'smooth' });
+  });
+});
+
+// Theme
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+document.getElementById('theme-toggle').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  document.getElementById('theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+
+// Cursor
+const dot = document.getElementById('cursor-dot');
+const ring = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+function animCursor() {
+  dot.style.transform = `translate(${mx-4}px, ${my-4}px)`;
+  rx += (mx - rx) * 0.15;
+  ry += (my - ry) * 0.15;
+  ring.style.transform = `translate(${rx-18}px, ${ry-18}px)`;
+  requestAnimationFrame(animCursor);
+}
+animCursor();
+document.querySelectorAll('a,button,input,textarea,select,.glass-card').forEach(el => {
+  el.addEventListener('mouseenter', () => ring.classList.add('hover'));
+  el.addEventListener('mouseleave', () => ring.classList.remove('hover'));
+});
+
+// ═══════════════════════
+// TOAST
+// ═══════════════════════
+function showToast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ═══════════════════════
+// MODAL
+// ═══════════════════════
+let modalCallback = null;
+function openModal(title, desc, cb) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-desc').textContent = desc;
+  document.getElementById('modal-note').value = '';
+  document.getElementById('modal').classList.add('show');
+  modalCallback = cb;
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal-confirm-btn').onclick = () => {
+  const note = document.getElementById('modal-note').value.trim();
+  closeModal();
+  if (modalCallback) modalCallback(note);
+};
+
+// ═══════════════════════
+// API CALL
+// ═══════════════════════
+async function callGAS(action, params = {}) {
+  const body = JSON.stringify({ action, ...params });
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body
+  });
+  return res.json();
+}
+
+// ═══════════════════════
+// LOOKUP
+// ═══════════════════════
+let cooldownTimer = null;
+
+function checkCooldown() {
+  const last = parseInt(localStorage.getItem('last_lookup') || '0');
+  const diff = Date.now() - last;
+  if (diff < COOLDOWN_SECONDS * 1000) {
+    const remain = Math.ceil((COOLDOWN_SECONDS * 1000 - diff) / 1000);
+    startCooldownUI(remain);
+    return true;
+  }
+  return false;
+}
+
+function startCooldownUI(seconds) {
+  const btn = document.getElementById('lookup-btn');
+  const bar = document.getElementById('cooldown-bar');
+  const fill = document.getElementById('cooldown-fill');
+  const txt = document.getElementById('cooldown-text');
+  btn.disabled = true; bar.style.display = 'block'; txt.style.display = 'block';
+  let s = seconds;
+  fill.style.width = `${(s / COOLDOWN_SECONDS) * 100}%`;
+  txt.textContent = `Vui lòng chờ ${s}s trước khi tra cứu tiếp`;
+  cooldownTimer = setInterval(() => {
+    s--;
+    fill.style.width = `${(s / COOLDOWN_SECONDS) * 100}%`;
+    txt.textContent = `Vui lòng chờ ${s}s trước khi tra cứu tiếp`;
+    if (s <= 0) {
+      clearInterval(cooldownTimer);
+      btn.disabled = false; bar.style.display = 'none'; txt.style.display = 'none';
+    }
+  }, 1000);
+}
+
+function showLookupStatus(type, msg) {
+  const el = document.getElementById('lookup-status');
+  el.className = `status-${type}`; el.textContent = msg; el.style.display = 'block';
+}
+
+async function doLookup() {
+  const id = document.getElementById('mssv-input').value.trim();
+  if (!id) { showLookupStatus('error', '⚠️ Vui lòng nhập MSSV của bạn'); return; }
+  if (checkCooldown()) { showLookupStatus('error', '⏳ Vui lòng chờ trước khi tra cứu tiếp'); return; }
+
+  const btn = document.getElementById('lookup-btn');
+  btn.disabled = true;
+  showLookupStatus('loading', '⏳ Đang tìm kiếm và gửi email...');
+
+  try {
+    const res = await callGAS('lookup', { student_id: id });
+    if (res.status === 'success') {
+      showLookupStatus('success', `✅ Đã gửi điểm về email ${id}@student.hcmute.edu.vn. Kiểm tra hộp thư!`);
+      localStorage.setItem('last_lookup', Date.now().toString());
+      startCooldownUI(COOLDOWN_SECONDS);
+    } else if (res.status === 'not_found') {
+      showLookupStatus('error', `❌ Không tìm thấy MSSV "${id}". Kiểm tra lại MSSV của bạn.`);
+      btn.disabled = false;
+    } else {
+      showLookupStatus('error', `❌ Lỗi: ${res.message || 'Không xác định'}`);
+      btn.disabled = false;
+    }
+  } catch(e) {
+    showLookupStatus('error', '❌ Lỗi kết nối. Vui lòng thử lại.');
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('mssv-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
+
+// ═══════════════════════
+// REVIEW
+// ═══════════════════════
+function showReviewStatus(type, msg) {
+  const el = document.getElementById('review-status');
+  el.className = `status-${type}`; el.textContent = msg; el.style.display = 'block';
+}
+
+async function doReview() {
+  const id = document.getElementById('review-mssv').value.trim();
+  const reason = document.getElementById('review-reason').value.trim();
+  if (!id) { showReviewStatus('error', '⚠️ Vui lòng nhập MSSV'); return; }
+  if (!reason || reason.length < 10) { showReviewStatus('error', '⚠️ Vui lòng mô tả lý do phúc khảo (ít nhất 10 ký tự)'); return; }
+
+  const btn = document.getElementById('review-btn');
+  btn.disabled = true;
+  showReviewStatus('loading', '⏳ Đang gửi yêu cầu...');
+
+  try {
+    const res = await callGAS('submit_review', { student_id: id, reason });
+    if (res.status === 'success') {
+      showReviewStatus('success', '✅ Yêu cầu phúc khảo đã được ghi nhận. Kiểm tra email để xác nhận!');
+      document.getElementById('review-reason').value = '';
+    } else {
+      showReviewStatus('error', `❌ ${res.message || 'Không thể gửi yêu cầu. Kiểm tra MSSV của bạn.'}`);
+    }
+  } catch(e) {
+    showReviewStatus('error', '❌ Lỗi kết nối. Vui lòng thử lại.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════
+// ADMIN AUTH
+// ═══════════════════════
+let adminToken = sessionStorage.getItem('admin_token') || null;
+let adminUser = JSON.parse(sessionStorage.getItem('admin_user') || 'null');
+let tokenClient = null;
+
+window.onload = () => {
+  checkCooldown();
+  if (adminToken && adminUser) showDashboard(adminUser);
+};
+
+function startGoogleLogin() {
+  if (!window.google) { showToast('⚠️ Google Identity Services chưa load xong'); return; }
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
+    showToast('⚠️ Chưa cấu hình GOOGLE_CLIENT_ID'); return;
+  }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid',
+    callback: handleTokenResponse
+  });
+  tokenClient.requestAccessToken();
+}
+
+async function handleTokenResponse(tokenResponse) {
+  if (tokenResponse.error) { showToast('❌ Đăng nhập thất bại'); return; }
+  const token = tokenResponse.access_token;
+
+  // Lấy thông tin user từ Google
+  const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const user = await userRes.json();
+
+  // Verify với GAS
+  try {
+    const res = await callGAS('verify_admin', { token, email: user.email });
+    if (res.status === 'authorized') {
+      adminToken = token;
+      adminUser = user;
+      sessionStorage.setItem('admin_token', token);
+      sessionStorage.setItem('admin_user', JSON.stringify(user));
+      showDashboard(user);
+      showToast('✅ Đăng nhập thành công!');
+    } else {
+      showToast('❌ Tài khoản không có quyền truy cập admin');
+    }
+  } catch(e) {
+    showToast('❌ Lỗi xác thực. Thử lại.');
+  }
+}
+
+function showDashboard(user) {
+  document.getElementById('admin-login-state').style.display = 'none';
+  document.getElementById('admin-dashboard').style.display = 'block';
+
+  const av = user.picture || '';
+  document.getElementById('admin-avatar').src = av;
+  document.getElementById('admin-name').textContent = user.name || user.email;
+  document.getElementById('admin-email').textContent = user.email;
+  document.getElementById('profile-avatar-big').src = av;
+  document.getElementById('profile-name-big').textContent = user.name || '';
+  document.getElementById('profile-email-big').textContent = user.email;
+
+  // Load saved profile
+  document.getElementById('prof-subject').value = localStorage.getItem('prof-subject') || '';
+  document.getElementById('prof-class').value = localStorage.getItem('prof-class') || '';
+  document.getElementById('prof-semester').value = localStorage.getItem('prof-semester') || '';
+
+  loadStudents();
+  loadStats();
+}
+
+function doLogout() {
+  adminToken = null; adminUser = null;
+  sessionStorage.removeItem('admin_token');
+  sessionStorage.removeItem('admin_user');
+  document.getElementById('admin-login-state').style.display = 'block';
+  document.getElementById('admin-dashboard').style.display = 'none';
+  showToast('Đã đăng xuất');
+}
+
+// ═══════════════════════
+// DASHBOARD DATA
+// ═══════════════════════
+let allStudents = [];
+let sortKey = 'student_id', sortAsc = true;
+
+async function loadStudents() {
+  try {
+    const res = await callGAS('get_students', { token: adminToken });
+    if (res.status === 'success') {
+      allStudents = res.data;
+      renderStudents(allStudents);
+      updateBulkCount(allStudents);
+    }
+  } catch(e) { showToast('⚠️ Không tải được danh sách sinh viên'); }
+}
+
+async function loadStats() {
+  try {
+    const res = await callGAS('get_stats', { token: adminToken });
+    if (res.status === 'success') {
+      document.getElementById('dash-total').textContent = res.total || 0;
+      document.getElementById('dash-sent').textContent = res.sent || 0;
+      document.getElementById('dash-pending').textContent = res.pending_reviews || 0;
+      document.getElementById('dash-quota').textContent = res.quota_remaining || '—';
+      document.getElementById('stat-sv').textContent = res.total || 0;
+      document.getElementById('stat-sent').textContent = res.sent || 0;
+      document.getElementById('stat-pk').textContent = res.pending_reviews || 0;
+    }
+  } catch(e) {}
+}
+
+function getGrade(score) {
+  if (score >= 8.5) return 'A';
+  if (score >= 7) return 'B';
+  if (score >= 5.5) return 'C';
+  if (score >= 4) return 'D';
+  return 'F';
+}
+
+function renderStudents(data) {
+  const tb = document.getElementById('students-tbody');
+  if (!data.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">Không có dữ liệu</td></tr>'; return; }
+  tb.innerHTML = data.map(s => {
+    const grade = getGrade(parseFloat(s.total_score));
+    const sent = s.email_sent === true || s.email_sent === 'TRUE' || s.email_sent === true;
+    const lastSent = s.last_sent_at ? new Date(s.last_sent_at).toLocaleString('vi-VN') : '—';
+    return `<tr>
+      <td><strong>${s.student_id}</strong></td>
+      <td>${s.midterm_score ?? '—'}</td>
+      <td>${s.final_score ?? '—'}</td>
+      <td><strong>${s.total_score ?? '—'}</strong></td>
+      <td><span class="grade-${grade}">${grade}</span></td>
+      <td><span class="badge ${sent ? 'badge-sent' : 'badge-unsent'}">${sent ? '✓ Đã gửi' : '✗ Chưa gửi'}</span></td>
+      <td style="font-size:0.82rem;color:var(--text2)">${lastSent}</td>
+    </tr>`;
+  }).join('');
+  updateBulkCount(data);
+}
+
+function filterStudents() {
+  const q = document.querySelector('.search-input').value.toLowerCase();
+  const grade = document.getElementById('filter-grade').value;
+  const sent = document.getElementById('filter-sent').value;
+  let filtered = allStudents.filter(s => {
+    const matchQ = !q || s.student_id?.toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q);
+    const matchGrade = !grade || getGrade(parseFloat(s.total_score)) === grade;
+    const isSent = s.email_sent === true || s.email_sent === 'TRUE';
+    const matchSent = !sent || (sent === 'sent' ? isSent : !isSent);
+    return matchQ && matchGrade && matchSent;
+  });
+  renderStudents(filtered);
+}
+
+function sortStudents(key) {
+  if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
+  allStudents.sort((a, b) => {
+    let va = a[key], vb = b[key];
+    if (!isNaN(va) && !isNaN(vb)) { va = parseFloat(va); vb = parseFloat(vb); }
+    return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+  filterStudents();
+}
+
+function updateBulkCount(data) {
+  document.getElementById('bulk-count').textContent = data.length;
+}
+
+async function doBulkSend() {
+  const count = parseInt(document.getElementById('bulk-count').textContent);
+  if (!count) { showToast('⚠️ Không có sinh viên nào để gửi'); return; }
+  if (!confirm(`Xác nhận gửi email đến ${count} sinh viên?`)) return;
+
+  const grade = document.getElementById('filter-grade').value;
+  const sent = document.getElementById('filter-sent').value;
+  showToast(`⏳ Đang gửi ${count} email...`, 5000);
+  try {
+    const res = await callGAS('bulk_send', { token: adminToken, filter_grade: grade, filter_sent: sent });
+    if (res.status === 'success') {
+      showToast(`✅ Đã gửi ${res.sent_count} email thành công!`);
+      loadStudents(); loadStats();
+    } else {
+      showToast(`❌ ${res.message || 'Lỗi gửi email'}`);
+    }
+  } catch(e) { showToast('❌ Lỗi kết nối'); }
+}
+
+// ═══════════════════════
+// IMPORT CSV
+// ═══════════════════════
+let csvRawData = null;
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) readCSV(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) readCSV(file);
+  document.getElementById('upload-zone').classList.remove('drag');
+}
+
+function readCSV(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    csvRawData = text;
+    previewCSV(text);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function previewCSV(text) {
+  const lines = text.trim().split('\n').slice(0, 6);
+  const headers = lines[0].split(',').map(h => h.trim());
+  const detected = detectColumns(headers);
+  document.getElementById('detected-cols').textContent = `Nhận diện cột: ${JSON.stringify(detected)}`;
+
+  const tableHtml = `<table>
+    <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${lines.slice(1).map(row => `<tr>${row.split(',').map(c => `<td>${c.trim()}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>`;
+
+  document.getElementById('preview-table-wrap').innerHTML = tableHtml;
+  document.getElementById('csv-preview').style.display = 'block';
+  document.getElementById('upload-zone').style.display = 'none';
+}
+
+function detectColumns(headers) {
+  const keywords = {
+    student_id: ['mssv','student_id','studentid','ma sv','masv'],
+    midterm_score: ['gk','midterm','giua ky','diemgk','diem gk'],
+    final_score: ['ck','final','cuoi ky','diemck','diem ck'],
+    total_score: ['total','tong','tong ket','diem tong','diemtong','dtb','tb']
+  };
+  const result = {};
+  headers.forEach(h => {
+    const norm = h.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
+    for (const [key, kws] of Object.entries(keywords)) {
+      if (kws.some(k => norm.includes(k))) { result[key] = h; break; }
+    }
+  });
+  return result;
+}
+
+function cancelImport() {
+  csvRawData = null;
+  document.getElementById('csv-preview').style.display = 'none';
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('csv-file').value = '';
+}
+
+async function confirmImport() {
+  if (!csvRawData) return;
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true; btn.textContent = '⏳ Đang import...';
+  try {
+    const res = await callGAS('import_csv', { token: adminToken, csv_data: csvRawData });
+    if (res.status === 'success') {
+      showToast(`✅ Đồng bộ ${res.upserted} sinh viên. Cột nhận diện: ${JSON.stringify(res.detected_cols)}`);
+      cancelImport(); loadStudents(); loadStats();
+    } else {
+      showToast(`❌ ${res.message || 'Import thất bại'}`);
+    }
+  } catch(e) { showToast('❌ Lỗi kết nối'); }
+  btn.disabled = false; btn.textContent = '✅ Xác nhận import';
+}
+
+// ═══════════════════════
+// REVIEWS
+// ═══════════════════════
+async function loadReviews() {
+  try {
+    const res = await callGAS('get_reviews', { token: adminToken });
+    if (res.status === 'success') renderReviews(res.data);
+  } catch(e) {}
+}
+
+function renderReviews(data) {
+  const tb = document.getElementById('reviews-tbody');
+  if (!data?.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:40px">Không có yêu cầu nào.</td></tr>'; return; }
+  tb.innerHTML = data.map(r => {
+    const badgeClass = r.status === 'pending' ? 'badge-pending' : r.status === 'approved' ? 'badge-approved' : 'badge-rejected';
+    const statusLabel = r.status === 'pending' ? '⏳ Chờ duyệt' : r.status === 'approved' ? '✅ Đã duyệt' : '❌ Từ chối';
+    const actions = r.status === 'pending'
+      ? `<div class="action-btns">
+          <button class="btn-approve" onclick="resolveReview('${r.id}','approved')">✓ Duyệt</button>
+          <button class="btn-reject" onclick="resolveReview('${r.id}','rejected')">✗ Từ chối</button>
+        </div>`
+      : `<span style="color:var(--text3);font-size:0.82rem">${r.note || '—'}</span>`;
+    return `<tr>
+      <td><strong>${r.student_id}</strong></td>
+      <td style="max-width:280px;white-space:normal">${r.reason}</td>
+      <td style="font-size:0.82rem;color:var(--text2)">${new Date(r.submitted_at).toLocaleString('vi-VN')}</td>
+      <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function resolveReview(id, status) {
+  const title = status === 'approved' ? '✅ Duyệt phúc khảo' : '❌ Từ chối phúc khảo';
+  const desc = `Ghi chú sẽ được gửi kèm email thông báo đến sinh viên.`;
+  openModal(title, desc, async (note) => {
+    try {
+      const res = await callGAS('resolve_review', { token: adminToken, id, status, note });
+      if (res.status === 'success') {
+        showToast(status === 'approved' ? '✅ Đã duyệt và gửi email sinh viên' : '✅ Đã từ chối và gửi email thông báo');
+        loadReviews(); loadStudents(); loadStats();
+      } else {
+        showToast(`❌ ${res.message}`);
+      }
+    } catch(e) { showToast('❌ Lỗi kết nối'); }
+  });
+}
+
+// ═══════════════════════
+// LOG
+// ═══════════════════════
+async function loadLog() {
+  try {
+    const res = await callGAS('get_log', { token: adminToken });
+    if (res.status === 'success') renderLog(res.data);
+  } catch(e) {}
+}
+
+function renderLog(data) {
+  const tb = document.getElementById('log-tbody');
+  if (!data?.length) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:40px">Chưa có lịch sử.</td></tr>'; return; }
+  tb.innerHTML = data.map(l => `<tr>
+    <td><strong>${l.student_id}</strong></td>
+    <td><span class="badge action-${l.action}">${l.action}</span></td>
+    <td style="font-size:0.82rem;color:var(--text2)">${new Date(l.timestamp).toLocaleString('vi-VN')}</td>
+    <td style="font-size:0.78rem;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis">${l.ip_hint || '—'}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════
+// TABS
+// ═══════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'tab-reviews') loadReviews();
+  if (id === 'tab-log') loadLog();
+}
+
+// ═══════════════════════
+// PROFILE
+// ═══════════════════════
+function saveProfile() {
+  ['prof-subject','prof-class','prof-semester'].forEach(id => {
+    localStorage.setItem(id, document.getElementById(id).value);
+  });
+  showToast('✅ Đã lưu thông tin giảng viên');
+}
+
+// Drag-over highlight
+document.getElementById('upload-zone').addEventListener('dragover', e => {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag');
+});
+document.getElementById('upload-zone').addEventListener('dragleave', () => {
+  document.getElementById('upload-zone').classList.remove('drag');
+});
+</script>
+</body>
+</html>
