@@ -905,6 +905,7 @@ footer {
               <th>Xếp loại</th>
               <th>Email</th>
               <th>Gửi lần cuối</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="students-tbody">
@@ -1009,7 +1010,7 @@ footer {
 // ═══════════════════════
 // CONFIG — SỬA Ở ĐÂY
 // ═══════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxte_GN94q7r7w1JG8ScCwakMXjiH8egElOTFJYrtBkqekt80Ou2tEfOB68IyPzLnS9/exec'; // ← Thay bằng URL deploy từ Apps Script
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx-y_77MVOfTGZVp63B2sR5OWBNonIGie6lNlyr7RG3Ntd3Yl0Z6AdUUXDkXAX47RQ/exec'; // ← Thay bằng URL deploy từ Apps Script
 const GOOGLE_CLIENT_ID = '613892430345-rgaj7l28fnr8d0u2uckbiegpv09ue2qp.apps.googleusercontent.com'; // ← Thay bằng OAuth Client ID
 const COOLDOWN_SECONDS = 10;
 
@@ -1336,6 +1337,7 @@ function fmtScore(v) {
   if (v === null || v === undefined || v === '') return '—';
   const n = parseFloat(String(v).replace(',', '.'));
   if (isNaN(n)) return '—';
+  if (n > 10 || n < 0) return '⚠️';
   return Number.isInteger(n) ? n.toFixed(1) : n.toFixed(2).replace(/\.?0+$/, s => s === '.00' ? '.0' : s);
 }
 function fmtDate(v) {
@@ -1346,7 +1348,7 @@ function fmtDate(v) {
 }
 function renderStudents(data) {
   const tb = document.getElementById('students-tbody');
-  if (!data.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:40px">Không có dữ liệu</td></tr>'; return; }
+  if (!data.length) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:40px">Không có dữ liệu</td></tr>'; return; }
   tb.innerHTML = data.map(s => {
     const tot = parseFloat(String(s.total_score).replace(',','.'));
     const grade = getGrade(tot);
@@ -1360,6 +1362,7 @@ function renderStudents(data) {
       <td><span class="grade-${grade}">${grade}</span></td>
       <td><span class="badge ${sent ? 'badge-sent' : 'badge-unsent'}">${sent ? '✓ Đã gửi' : '✗ Chưa gửi'}</span></td>
       <td style="font-size:0.82rem;color:var(--text2)">${fmtDate(s.last_sent_at)}</td>
+      <td><button onclick="deleteStudent('${s.student_id}')" title="Xóa sinh viên này" style="background:none;border:none;font-size:1.1rem;padding:4px 8px;border-radius:8px;transition:background 0.15s" onmouseover="this.style.background='rgba(255,82,82,0.12)'" onmouseout="this.style.background='none'">🗑️</button></td>
     </tr>`;
   }).join('');
   updateBulkCount(data);
@@ -1392,6 +1395,21 @@ function sortStudents(key) {
     return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
   });
   filterStudents();
+}
+
+async function deleteStudent(student_id) {
+  if (!confirm(`Xóa sinh viên ${student_id} khỏi danh sách?`)) return;
+  try {
+    const res = await callGAS('delete_student', { token: adminToken, student_id });
+    if (res.status === 'success') {
+      showToast(`🗑️ Đã xóa sinh viên ${student_id}`);
+      allStudents = allStudents.filter(s => s.student_id !== student_id);
+      filterStudents();
+      loadStats();
+    } else {
+      showToast(`❌ ${res.message || 'Không thể xóa sinh viên'}`);
+    }
+  } catch(e) { showToast('❌ Lỗi kết nối'); }
 }
 
 function updateBulkCount(data) {
@@ -1464,6 +1482,14 @@ function splitLine(line, delim) {
 }
 function previewCSV(text) {
   const lines = text.trim().split('\n').filter(l => l.trim()).slice(0, 6);
+  // Hiện panel ngay để nút Hủy luôn có thể bấm được dù gặp lỗi cột
+  document.getElementById('csv-preview').style.display = 'block';
+  document.getElementById('upload-zone').style.display = 'none';
+  if (!lines.length) {
+    document.getElementById('detected-cols').innerHTML = '<span style="color:var(--red)">⚠️ File CSV rỗng hoặc không đọc được.</span>';
+    document.getElementById('import-confirm-btn').disabled = true;
+    return;
+  }
   const delim = detectDelimiter(lines[0]);
   csvDelimiter = delim; // lưu để dùng khi import
   const headers = splitLine(lines[0], delim);
@@ -1486,8 +1512,6 @@ function previewCSV(text) {
     <tbody>${lines.slice(1).map(row => `<tr>${splitLine(row,delim).map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
   </table>`;
   document.getElementById('preview-table-wrap').innerHTML = tableHtml;
-  document.getElementById('csv-preview').style.display = 'block';
-  document.getElementById('upload-zone').style.display = 'none';
 }
 
 function detectColumns(headers) {
@@ -1576,7 +1600,7 @@ function renderReviews(data) {
     return `<tr>
       <td><strong>${r.student_id}</strong></td>
       <td style="max-width:280px;white-space:normal">${r.reason}</td>
-      <td style="font-size:0.82rem;color:var(--text2)">${new Date(r.submitted_at).toLocaleString('vi-VN')}</td>
+      <td style="font-size:0.82rem;color:var(--text2)">${fmtDate(r.submitted_at)}</td>
       <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
       <td>${actions}</td>
     </tr>`;
